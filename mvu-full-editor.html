@@ -1,0 +1,1161 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MVU全功能编辑器</title>
+<script src="https://testingcf.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+#mvu-root {
+  position: fixed;
+  right: 0;
+  top: 60px;
+  width: 400px;
+  height: calc(100vh - 80px);
+  background: #0f141b;
+  border-left: 1px solid #2a313c;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  font-family: 'Noto Sans SC', 'Microsoft YaHei', sans-serif;
+  font-size: 13px;
+  color: #e2e8f0;
+  box-shadow: -4px 0 24px rgba(0,0,0,0.45);
+}
+
+/* 头部 */
+#mvu-header {
+  padding: 10px 14px;
+  border-bottom: 1px solid #2a313c;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #131922;
+}
+#mvu-header h3 {
+  font-size: 14px;
+  color: #00bfff;
+  font-weight: 600;
+}
+.mvu-icon-btn {
+  width: 24px;
+  height: 24px;
+  border: 1px solid #2a313c;
+  background: #1a202b;
+  color: #9aa5b1;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.mvu-icon-btn:hover { border-color: #00bfff; color: #00bfff; }
+
+/* 标签栏 */
+#mvu-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 6px 8px 0;
+  border-bottom: 1px solid #2a313c;
+  background: #111720;
+  overflow-x: auto;
+  flex-shrink: 0;
+}
+.mvu-tab {
+  padding: 6px 10px;
+  background: transparent;
+  border: none;
+  color: #7b8591;
+  cursor: pointer;
+  font-size: 12px;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+}
+.mvu-tab.active {
+  color: #00bfff;
+  border-bottom-color: #00bfff;
+  font-weight: 600;
+}
+
+/* 内容区 */
+#mvu-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+}
+.mvu-panel { display: none; }
+.mvu-panel.active { display: block; }
+
+/* 通用卡片 */
+.mvu-card {
+  background: #161c25;
+  border: 1px solid #2a313c;
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  border-left: 3px solid #00bfff;
+}
+.mvu-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #232a35;
+}
+.mvu-card-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #cbd5e1;
+}
+.mvu-del-btn {
+  padding: 2px 6px;
+  border: 1px solid #3a2424;
+  background: #2a1616;
+  color: #ff6b6b;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 11px;
+}
+.mvu-del-btn:hover { background: #3a1c1c; }
+
+/* 表单 */
+.mvu-form-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 6px;
+  gap: 8px;
+}
+.mvu-form-label {
+  width: 70px;
+  color: #8b949e;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+.mvu-input {
+  flex: 1;
+  padding: 4px 8px;
+  background: #0d1117;
+  border: 1px solid #2a313c;
+  border-radius: 4px;
+  color: #e2e8f0;
+  font-size: 12px;
+  font-family: inherit;
+}
+.mvu-input:focus { outline: none; border-color: #00bfff; }
+.mvu-input.small { width: 60px; flex: none; }
+
+.mvu-add-btn {
+  width: 100%;
+  padding: 6px;
+  border: 1px dashed #2a313c;
+  background: transparent;
+  color: #6b7280;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  margin-top: 4px;
+}
+.mvu-add-btn:hover { border-color: #00bfff; color: #00bfff; }
+
+/* 品质标签 */
+.quality-tag {
+  padding: 1px 6px;
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.q-普通 { background: #2a313c; color: #94a3b8; }
+.q-优良 { background: rgba(34,197,94,0.15); color: #22c55e; }
+.q-稀有 { background: rgba(59,130,246,0.15); color: #3b82f6; }
+.q-史诗 { background: rgba(168,85,247,0.15); color: #a855f7; }
+.q-传说 { background: rgba(245,158,11,0.15); color: #f59e0b; }
+.q-神话 { background: rgba(236,72,153,0.15); color: #ec4899; }
+
+/* 底部操作栏 */
+#mvu-footer {
+  padding: 8px 12px;
+  border-top: 1px solid #2a313c;
+  background: #131922;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.mvu-btn {
+  padding: 5px 10px;
+  border: 1px solid #2a313c;
+  background: #1a202b;
+  color: #cbd5e1;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s;
+}
+.mvu-btn:hover { border-color: #00bfff; color: #00bfff; }
+.mvu-btn.primary { background: #00bfff; border-color: #00bfff; color: #fff; }
+#mvu-status {
+  flex: 1;
+  text-align: right;
+  font-size: 11px;
+  color: #6b7280;
+}
+
+/* Toast */
+#mvu-toast {
+  position: fixed;
+  top: 80px;
+  right: 20px;
+  padding: 8px 16px;
+  background: rgba(0,0,0,0.85);
+  color: #fff;
+  border-radius: 6px;
+  z-index: 10000;
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+  font-size: 12px;
+}
+#mvu-toast.show { opacity: 1; }
+
+/* JSON视图 */
+#mvu-json-view {
+  width: 100%;
+  min-height: 400px;
+  padding: 8px;
+  background: #0d1117;
+  border: 1px solid #2a313c;
+  border-radius: 4px;
+  color: #e2e8f0;
+  font-family: Consolas, monospace;
+  font-size: 11px;
+  resize: vertical;
+}
+
+/* 收起状态 */
+#mvu-root.minimized { height: 38px; }
+#mvu-root.minimized #mvu-tabs,
+#mvu-root.minimized #mvu-content,
+#mvu-root.minimized #mvu-footer { display: none; }
+
+/* 滚动条 */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #2a313c; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #3a4250; }
+</style>
+</head>
+<body>
+
+<div id="mvu-root">
+  <div id="mvu-header">
+    <h3>📊 MVU 系统编辑器</h3>
+    <button class="mvu-icon-btn" id="mvu-minimize" title="收起">─</button>
+  </div>
+
+  <div id="mvu-tabs">
+    <button class="mvu-tab active" data-tab="world">世界</button>
+    <button class="mvu-tab" data-tab="character">角色</button>
+    <button class="mvu-tab" data-tab="inventory">背包</button>
+    <button class="mvu-tab" data-tab="equipment">装备</button>
+    <button class="mvu-tab" data-tab="skills">技能</button>
+    <button class="mvu-tab" data-tab="buffs">状态</button>
+    <button class="mvu-tab" data-tab="divinity">登神</button>
+    <button class="mvu-tab" data-tab="quests">任务</button>
+    <button class="mvu-tab" data-tab="relations">关系</button>
+    <button class="mvu-tab" data-tab="advanced">高级</button>
+  </div>
+
+  <div id="mvu-content">
+    <!-- 世界面板 -->
+    <div class="mvu-panel active" data-panel="world">
+      <div class="mvu-card">
+        <div class="mvu-card-header"><span class="mvu-card-title">世界时间</span></div>
+        <div class="mvu-form-row">
+          <span class="mvu-form-label">纪元</span>
+          <input class="mvu-input" data-field="world.time.era" placeholder="例如：星陨">
+        </div>
+        <div class="mvu-form-row">
+          <span class="mvu-form-label">年/月/日</span>
+          <input class="mvu-input small" data-field="world.time.year" placeholder="年">
+          <input class="mvu-input small" data-field="world.time.month" placeholder="月">
+          <input class="mvu-input small" data-field="world.time.day" placeholder="日">
+          <input class="mvu-input small" data-field="world.time.weekday" placeholder="星期">
+        </div>
+        <div class="mvu-form-row">
+          <span class="mvu-form-label">时间</span>
+          <input class="mvu-input small" data-field="world.time.hour" placeholder="时">
+          <span>:</span>
+          <input class="mvu-input small" data-field="world.time.minute" placeholder="分">
+          <span style="color:#6b7280;font-size:11px;margin-left:8px;">24小时制</span>
+        </div>
+      </div>
+
+      <div class="mvu-card">
+        <div class="mvu-card-header"><span class="mvu-card-title">当前地点</span></div>
+        <div class="mvu-form-row">
+          <span class="mvu-form-label">大陆</span>
+          <input class="mvu-input" data-field="world.location.continent" placeholder="大陆方位">
+        </div>
+        <div class="mvu-form-row">
+          <span class="mvu-form-label">区域</span>
+          <input class="mvu-input" data-field="world.location.region" placeholder="区域">
+        </div>
+        <div class="mvu-form-row">
+          <span class="mvu-form-label">势力</span>
+          <input class="mvu-input" data-field="world.location.power" placeholder="势力">
+        </div>
+        <div class="mvu-form-row">
+          <span class="mvu-form-label">子势力</span>
+          <input class="mvu-input" data-field="world.location.subPower" placeholder="子级势力">
+        </div>
+        <div class="mvu-form-row">
+          <span class="mvu-form-label">聚落</span>
+          <input class="mvu-input" data-field="world.location.settlement" placeholder="聚落/地标">
+        </div>
+        <div class="mvu-form-row">
+          <span class="mvu-form-label">区位</span>
+          <input class="mvu-input" data-field="world.location.zone" placeholder="区位">
+        </div>
+        <div class="mvu-form-row">
+          <span class="mvu-form-label">详细</span>
+          <input class="mvu-input" data-field="world.location.detail" placeholder="详细位置">
+        </div>
+      </div>
+    </div>
+
+    <!-- 角色面板 -->
+    <div class="mvu-panel" data-panel="character">
+      <div class="mvu-card">
+        <div class="mvu-card-header"><span class="mvu-card-title">基础信息</span></div>
+        <div class="mvu-form-row">
+          <span class="mvu-form-label">种族</span>
+          <input class="mvu-input" data-field="protagonist.race" placeholder="种族">
+        </div>
+        <div class="mvu-form-row">
+          <span class="mvu-form-label">身份</span>
+          <input class="mvu-input" data-field="protagonist.identity" placeholder="多个用逗号分隔">
+        </div>
+        <div class="mvu-form-row">
+          <span class="mvu-form-label">职业</span>
+          <input class="mvu-input" data-field="protagonist.occupation" placeholder="多个用逗号分隔">
+        </div>
+        <div class="mvu-form-row">
+          <span class="mvu-form-label">冒险者等级</span>
+          <input class="mvu-input small" data-field="protagonist.level" type="number" placeholder="等级">
+          <span class="mvu-form-label" style="width:auto;margin-left:8px;">经验</span>
+          <input class="mvu-input small" data-field="protagonist.exp" type="number" placeholder="经验">
+        </div>
+        <div class="mvu-form-row">
+          <span class="mvu-form-label">属性点</span>
+          <input class="mvu-input small" data-field="protagonist.attrPoints" type="number" placeholder="剩余点数">
+          <span style="color:#6b7280;font-size:11px;margin-left:8px;">仅手动分配</span>
+        </div>
+        <div class="mvu-form-row">
+          <span class="mvu-form-label">金钱</span>
+          <input class="mvu-input" data-field="protagonist.gold" type="number" placeholder="金币数量">
+        </div>
+        <div class="mvu-form-row">
+          <span class="mvu-form-label">命运点数</span>
+          <input class="mvu-input small" data-field="protagonist.fp" type="number" placeholder="FP">
+          <span style="color:#6b7280;font-size:11px;margin-left:8px;">不可为负</span>
+        </div>
+      </div>
+
+      <div class="mvu-card">
+        <div class="mvu-card-header"><span class="mvu-card-title">五维属性</span></div>
+        <div class="mvu-form-row">
+          <span class="mvu-form-label">力量</span>
+          <input class="mvu-input small" data-field="protagonist.attr.力量" type="number">
+          <span class="mvu-form-label" style="width:auto;margin-left:12px;">敏捷</span>
+          <input class="mvu-input small" data-field="protagonist.attr.敏捷" type="number">
+        </div>
+        <div class="mvu-form-row">
+          <span class="mvu-form-label">体质</span>
+          <input class="mvu-input small" data-field="protagonist.attr.体质" type="number">
+          <span class="mvu-form-label" style="width:auto;margin-left:12px;">智力</span>
+          <input class="mvu-input small" data-field="protagonist.attr.智力" type="number">
+        </div>
+        <div class="mvu-form-row">
+          <span class="mvu-form-label">精神</span>
+          <input class="mvu-input small" data-field="protagonist.attr.精神" type="number">
+        </div>
+      </div>
+
+      <div class="mvu-card">
+        <div class="mvu-card-header"><span class="mvu-card-title">资源</span></div>
+        <div class="mvu-form-row">
+          <span class="mvu-form-label">生命值</span>
+          <input class="mvu-input small" data-field="protagonist.res.hp.current" type="number" placeholder="当前">
+          <span>/</span>
+          <input class="mvu-input small" data-field="protagonist.res.hp.max" type="number" placeholder="上限">
+        </div>
+        <div class="mvu-form-row">
+          <span class="mvu-form-label">法力值</span>
+          <input class="mvu-input small" data-field="protagonist.res.mp.current" type="number" placeholder="当前">
+          <span>/</span>
+          <input class="mvu-input small" data-field="protagonist.res.mp.max" type="number" placeholder="上限">
+        </div>
+        <div class="mvu-form-row">
+          <span class="mvu-form-label">体力值</span>
+          <input class="mvu-input small" data-field="protagonist.res.sp.current" type="number" placeholder="当前">
+          <span>/</span>
+          <input class="mvu-input small" data-field="protagonist.res.sp.max" type="number" placeholder="上限">
+        </div>
+      </div>
+    </div>
+
+    <!-- 背包面板 -->
+    <div class="mvu-panel" data-panel="inventory">
+      <div id="inventory-list"></div>
+      <button class="mvu-add-btn" id="add-item">+ 添加物品</button>
+    </div>
+
+    <!-- 装备面板 -->
+    <div class="mvu-panel" data-panel="equipment">
+      <div id="equipment-list"></div>
+      <button class="mvu-add-btn" id="add-equip">+ 添加装备</button>
+    </div>
+
+    <!-- 技能面板 -->
+    <div class="mvu-panel" data-panel="skills">
+      <div id="skills-list"></div>
+      <button class="mvu-add-btn" id="add-skill">+ 添加技能</button>
+    </div>
+
+    <!-- 状态面板 -->
+    <div class="mvu-panel" data-panel="buffs">
+      <div id="buffs-list"></div>
+      <button class="mvu-add-btn" id="add-buff">+ 添加状态效果</button>
+    </div>
+
+    <!-- 登神面板 -->
+    <div class="mvu-panel" data-panel="divinity">
+      <div class="mvu-card">
+        <div class="mvu-card-header">
+          <span class="mvu-card-title">登神长阶</span>
+          <span class="quality-tag q-传说" id="divinity-status">未开启</span>
+        </div>
+        <div class="mvu-form-row">
+          <span class="mvu-form-label">是否开启</span>
+          <input type="checkbox" id="divinity-enabled" style="margin-right:8px;">
+          <span style="color:#6b7280;font-size:11px;">等级≥12且经验满自动开启</span>
+        </div>
+        <div class="mvu-form-row">
+          <span class="mvu-form-label">神位</span>
+          <input class="mvu-input" data-field="divinity.title" placeholder="神位称号">
+        </div>
+      </div>
+
+      <div class="mvu-card">
+        <div class="mvu-card-header"><span class="mvu-card-title">神国</span></div>
+        <div class="mvu-form-row">
+          <span class="mvu-form-label">名称</span>
+          <input class="mvu-input" data-field="divinity.kingdom.name" placeholder="神国名称">
+        </div>
+        <div class="mvu-form-row">
+          <span class="mvu-form-label">描述</span>
+          <input class="mvu-input" data-field="divinity.kingdom.desc" placeholder="神国描述">
+        </div>
+      </div>
+
+      <div class="mvu-card">
+        <div class="mvu-card-header">
+          <span class="mvu-card-title">要素</span>
+          <span style="color:#6b7280;font-size:11px;">最多3个</span>
+        </div>
+        <div id="divinity-elements"></div>
+        <button class="mvu-add-btn" id="add-element">+ 添加要素</button>
+      </div>
+
+      <div class="mvu-card">
+        <div class="mvu-card-header">
+          <span class="mvu-card-title">权能</span>
+          <span style="color:#6b7280;font-size:11px;">最多1个</span>
+        </div>
+        <div id="divinity-authority"></div>
+        <button class="mvu-add-btn" id="add-authority">+ 添加权能</button>
+      </div>
+
+      <div class="mvu-card">
+        <div class="mvu-card-header"><span class="mvu-card-title">法则</span></div>
+        <div id="divinity-laws"></div>
+        <button class="mvu-add-btn" id="add-law">+ 添加法则</button>
+      </div>
+    </div>
+
+    <!-- 任务面板 -->
+    <div class="mvu-panel" data-panel="quests">
+      <div id="quests-list"></div>
+      <button class="mvu-add-btn" id="add-quest">+ 添加任务</button>
+      <p style="color:#6b7280;font-size:11px;margin-top:8px;">活跃任务不超过3个</p>
+    </div>
+
+    <!-- 关系面板 -->
+    <div class="mvu-panel" data-panel="relations">
+      <div id="relations-list"></div>
+      <button class="mvu-add-btn" id="add-relation">+ 添加关系角色</button>
+    </div>
+
+    <!-- 高级面板 -->
+    <div class="mvu-panel" data-panel="advanced">
+      <div class="mvu-form-row">
+        <input class="mvu-input" id="mvu-search" placeholder="搜索变量...">
+      </div>
+      <textarea id="mvu-json-view" spellcheck="false"></textarea>
+      <div style="display:flex;gap:6px;margin-top:8px;">
+        <button class="mvu-btn" id="apply-json">应用JSON</button>
+        <button class="mvu-btn" id="reset-json">重置</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="mvu-footer">
+    <button class="mvu-btn" id="mvu-refresh">🔄 刷新</button>
+    <button class="mvu-btn primary" id="mvu-save">💾 保存</button>
+    <span id="mvu-status">就绪</span>
+  </div>
+</div>
+
+<div id="mvu-toast"></div>
+
+<script>
+// 全局数据
+let mvuData = {};
+let originalData = {};
+
+// 获取 TavernHelper API
+function getTavernHelper() {
+  return window.TavernHelper || window.parent?.TavernHelper || window.top?.TavernHelper;
+}
+
+// Toast 提示
+function showToast(msg) {
+  const el = document.getElementById('mvu-toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2000);
+}
+
+// 深度获取对象值
+function getPath(obj, path) {
+  return path.split('.').reduce((o, k) => o ? o[k] : undefined, obj);
+}
+
+// 深度设置对象值
+function setPath(obj, path, value) {
+  const keys = path.split('.');
+  const last = keys.pop();
+  const target = keys.reduce((o, k) => o[k] = o[k] || {}, obj);
+  target[last] = value;
+}
+
+// 加载 MVU 数据
+async function loadMVU() {
+  const helper = getTavernHelper();
+  if (!helper?.getVariables) {
+    document.getElementById('mvu-status').textContent = '❌ 无MVU API';
+    return;
+  }
+
+  try {
+    document.getElementById('mvu-status').textContent = '加载中...';
+    const res = await helper.getVariables({ type: 'message', message_id: 'latest' });
+    mvuData = res || {};
+    originalData = JSON.parse(JSON.stringify(mvuData));
+    
+    // 初始化默认结构
+    initDefaultStructure();
+    
+    renderAllPanels();
+    document.getElementById('mvu-status').textContent = '✅ 已加载';
+  } catch(e) {
+    document.getElementById('mvu-status').textContent = '❌ 加载失败';
+    console.error('MVU加载失败:', e);
+  }
+}
+
+// 初始化默认数据结构
+function initDefaultStructure() {
+  if (!mvuData.world) mvuData.world = { time: {}, location: {} };
+  if (!mvuData.protagonist) {
+    mvuData.protagonist = {
+      race: '', identity: [], occupation: [],
+      level: 1, exp: 0, attrPoints: 0,
+      attr: { 力量: 10, 敏捷: 10, 体质: 10, 智力: 10, 精神: 10 },
+      res: {
+        hp: { current: 100, max: 100 },
+        mp: { current: 50, max: 50 },
+        sp: { current: 100, max: 100 }
+      },
+      gold: 0, fp: 0,
+      backpack: {}, equipment: {}, skills: {}, buffs: {}
+    };
+  }
+  if (!mvuData.divinity) {
+    mvuData.divinity = {
+      enabled: false, title: '',
+      kingdom: { name: '', desc: '' },
+      elements: {}, authority: {}, laws: {}
+    };
+  }
+  if (!mvuData.quests) mvuData.quests = {};
+  if (!mvuData.relations) mvuData.relations = {};
+}
+
+// 保存 MVU 数据
+async function saveMVU() {
+  const helper = getTavernHelper();
+  if (!helper?.insertOrAssignVariables) {
+    showToast('❌ 未检测到 MVU API');
+    return;
+  }
+
+  try {
+    document.getElementById('mvu-status').textContent = '保存中...';
+    
+    // 执行规则校验
+    runValidationRules();
+    
+    await helper.insertOrAssignVariables(mvuData, { type: 'message', message_id: 'latest' });
+    originalData = JSON.parse(JSON.stringify(mvuData));
+    document.getElementById('mvu-status').textContent = '✅ 已保存';
+    showToast('✅ 已保存到 MVU');
+  } catch(e) {
+    document.getElementById('mvu-status').textContent = '❌ 保存失败';
+    showToast('❌ 保存失败: ' + e.message);
+    console.error(e);
+  }
+}
+
+// 规则校验
+function runValidationRules() {
+  // 背包：数量为0自动移除
+  if (mvuData.protagonist?.backpack) {
+    Object.keys(mvuData.protagonist.backpack).forEach(name => {
+      if (mvuData.protagonist.backpack[name].quantity <= 0) {
+        delete mvuData.protagonist.backpack[name];
+      }
+    });
+  }
+
+  // 金钱四舍五入
+  if (mvuData.protagonist?.gold != null) {
+    mvuData.protagonist.gold = Math.round(mvuData.protagonist.gold);
+  }
+
+  // 命运点数不可为负
+  if (mvuData.protagonist?.fp < 0) mvuData.protagonist.fp = 0;
+
+  // 资源当前值不超过上限
+  const res = mvuData.protagonist?.res;
+  if (res) {
+    ['hp', 'mp', 'sp'].forEach(k => {
+      if (res[k]?.current > res[k]?.max) res[k].current = res[k].max;
+    });
+  }
+
+  // 登神开启条件
+  const p = mvuData.protagonist;
+  if (p?.level >= 13 || (p?.level >= 12 && p?.exp >= getExpMax(p.level))) {
+    if (mvuData.divinity) mvuData.divinity.enabled = true;
+  }
+
+  // 要素最多3个
+  if (mvuData.divinity?.elements) {
+    const keys = Object.keys(mvuData.divinity.elements);
+    if (keys.length > 3) {
+      showToast('⚠️ 要素最多持有3个');
+    }
+  }
+
+  // 权能最多1个
+  if (mvuData.divinity?.authority) {
+    const keys = Object.keys(mvuData.divinity.authority);
+    if (keys.length > 1) {
+      showToast('⚠️ 权能最多持有1个');
+    }
+  }
+
+  // 活跃任务不超过3个
+  if (mvuData.quests) {
+    const active = Object.values(mvuData.quests).filter(q => 
+      q.status && !['已完成', '失败', '已结算'].includes(q.status)
+    );
+    if (active.length > 3) {
+      showToast('⚠️ 活跃任务建议不超过3个');
+    }
+  }
+}
+
+function getExpMax(level) { return level * 1000; }
+
+// 渲染所有面板
+function renderAllPanels() {
+  renderWorldPanel();
+  renderCharacterPanel();
+  renderInventory();
+  renderEquipment();
+  renderSkills();
+  renderBuffs();
+  renderDivinity();
+  renderQuests();
+  renderRelations();
+  renderAdvanced();
+}
+
+// 渲染世界面板
+function renderWorldPanel() {
+  bindInputValues('world');
+}
+
+// 渲染角色面板
+function renderCharacterPanel() {
+  bindInputValues('protagonist');
+}
+
+// 通用输入绑定
+function bindInputValues(prefix) {
+  document.querySelectorAll(`[data-field^="${prefix}."]`).forEach(input => {
+    const path = input.dataset.field;
+    const val = getPath(mvuData, path);
+    if (val != null) {
+      if (Array.isArray(val)) input.value = val.join('，');
+      else input.value = val;
+    }
+    
+    input.oninput = () => {
+      let v = input.value;
+      if (input.type === 'number') v = Number(v) || 0;
+      if (path.endsWith('identity') || path.endsWith('occupation')) {
+        v = v.split(/[,，]/).map(s => s.trim()).filter(Boolean);
+      }
+      setPath(mvuData, path, v);
+      document.getElementById('mvu-status').textContent = '✏️ 已修改';
+    };
+  });
+}
+
+// 渲染背包
+function renderInventory() {
+  const container = document.getElementById('inventory-list');
+  const items = mvuData.protagonist?.backpack || {};
+  container.innerHTML = '';
+  
+  Object.entries(items).forEach(([name, data]) => {
+    const card = createItemCard(name, data, 'backpack');
+    container.appendChild(card);
+  });
+}
+
+// 渲染装备
+function renderEquipment() {
+  const container = document.getElementById('equipment-list');
+  const items = mvuData.protagonist?.equipment || {};
+  container.innerHTML = '';
+  
+  Object.entries(items).forEach(([name, data]) => {
+    const card = createItemCard(name, data, 'equipment');
+    container.appendChild(card);
+  });
+}
+
+// 渲染技能
+function renderSkills() {
+  const container = document.getElementById('skills-list');
+  const items = mvuData.protagonist?.skills || {};
+  container.innerHTML = '';
+  
+  Object.entries(items).forEach(([name, data]) => {
+    const card = createItemCard(name, data, 'skill');
+    container.appendChild(card);
+  });
+}
+
+// 通用物品卡片生成
+function createItemCard(name, data, type) {
+  const card = document.createElement('div');
+  card.className = 'mvu-card';
+  
+  const quality = data.quality || '普通';
+  card.innerHTML = `
+    <div class="mvu-card-header">
+      <span class="mvu-card-title">${name}</span>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <span class="quality-tag q-${quality}">${quality}</span>
+        <button class="mvu-del-btn" data-name="${name}" data-type="${type}">删除</button>
+      </div>
+    </div>
+    <div class="mvu-form-row">
+      <span class="mvu-form-label">类型</span>
+      <input class="mvu-input" value="${data.type || ''}" placeholder="类型">
+    </div>
+    ${type === 'backpack' ? `
+    <div class="mvu-form-row">
+      <span class="mvu-form-label">数量</span>
+      <input class="mvu-input small" type="number" value="${data.quantity || 1}" placeholder="数量">
+    </div>` : ''}
+    ${type === 'equipment' ? `
+    <div class="mvu-form-row">
+      <span class="mvu-form-label">位置</span>
+      <input class="mvu-input" value="${data.slot || ''}" placeholder="穿戴位置">
+    </div>` : ''}
+    ${type === 'skill' ? `
+    <div class="mvu-form-row">
+      <span class="mvu-form-label">消耗</span>
+      <input class="mvu-input" value="${data.cost || ''}" placeholder="消耗">
+    </div>` : ''}
+    <div class="mvu-form-row">
+      <span class="mvu-form-label">描述</span>
+      <input class="mvu-input" value="${data.desc || ''}" placeholder="描述">
+    </div>
+  `;
+  
+  // 删除按钮
+  card.querySelector('.mvu-del-btn').onclick = function() {
+    const n = this.dataset.name;
+    const t = this.dataset.type;
+    delete mvuData.protagonist[t === 'backpack' ? 'backpack' : t === 'equipment' ? 'equipment' : 'skills'][n];
+    renderAllPanels();
+    showToast('🗑️ 已删除');
+  };
+  
+  return card;
+}
+
+// 渲染状态效果
+function renderBuffs() {
+  const container = document.getElementById('buffs-list');
+  const buffs = mvuData.protagonist?.buffs || {};
+  container.innerHTML = '';
+  
+  Object.entries(buffs).forEach(([name, data]) => {
+    const card = document.createElement('div');
+    card.className = 'mvu-card';
+    const typeColor = data.type === '增益' ? '#22c55e' : data.type === '减益' ? '#ef4444' : '#a855f7';
+    card.style.borderLeftColor = typeColor;
+    
+    card.innerHTML = `
+      <div class="mvu-card-header">
+        <span class="mvu-card-title">${name}</span>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <span style="color:${typeColor};font-size:11px;font-weight:600;">${data.type || '特殊'}</span>
+          <button class="mvu-del-btn" data-name="${name}">删除</button>
+        </div>
+      </div>
+      <div class="mvu-form-row">
+        <span class="mvu-form-label">层数</span>
+        <input class="mvu-input small" type="number" value="${data.layers || 1}">
+        <span class="mvu-form-label" style="width:auto;margin-left:12px;">剩余时间</span>
+        <input class="mvu-input small" value="${data.remainTime || ''}" placeholder="时间">
+      </div>
+      <div class="mvu-form-row">
+        <span class="mvu-form-label">来源</span>
+        <input class="mvu-input" value="${data.source || ''}" placeholder="来源">
+      </div>
+      <div class="mvu-form-row">
+        <span class="mvu-form-label">效果</span>
+        <input class="mvu-input" value="${data.effect || ''}" placeholder="效果描述">
+      </div>
+    `;
+    
+    card.querySelector('.mvu-del-btn').onclick = function() {
+      delete mvuData.protagonist.buffs[name];
+      renderBuffs();
+      showToast('🗑️ 已移除效果');
+    };
+    
+    container.appendChild(card);
+  });
+}
+
+// 渲染登神
+function renderDivinity() {
+  const enabled = mvuData.divinity?.enabled;
+  document.getElementById('divinity-enabled').checked = enabled;
+  document.getElementById('divinity-status').textContent = enabled ? '已开启' : '未开启';
+  document.getElementById('divinity-status').className = 'quality-tag ' + (enabled ? 'q-传说' : 'q-普通');
+  
+  bindInputValues('divinity');
+  
+  // 要素
+  const elemContainer = document.getElementById('divinity-elements');
+  elemContainer.innerHTML = '';
+  Object.entries(mvuData.divinity?.elements || {}).forEach(([name, data]) => {
+    const item = document.createElement('div');
+    item.className = 'mvu-form-row';
+    item.innerHTML = `<span class="mvu-form-label">${name}</span><input class="mvu-input" value="${data.desc || ''}">`;
+    elemContainer.appendChild(item);
+  });
+  
+  // 权能
+  const authContainer = document.getElementById('divinity-authority');
+  authContainer.innerHTML = '';
+  Object.entries(mvuData.divinity?.authority || {}).forEach(([name, data]) => {
+    const item = document.createElement('div');
+    item.className = 'mvu-form-row';
+    item.innerHTML = `<span class="mvu-form-label">${name}</span><input class="mvu-input" value="${data.desc || ''}">`;
+    authContainer.appendChild(item);
+  });
+  
+  // 法则
+  const lawContainer = document.getElementById('divinity-laws');
+  lawContainer.innerHTML = '';
+  Object.entries(mvuData.divinity?.laws || {}).forEach(([name, data]) => {
+    const item = document.createElement('div');
+    item.className = 'mvu-form-row';
+    item.innerHTML = `<span class="mvu-form-label">${name}</span><input class="mvu-input" value="${data.desc || ''}">`;
+    lawContainer.appendChild(item);
+  });
+}
+
+// 渲染任务
+function renderQuests() {
+  const container = document.getElementById('quests-list');
+  const quests = mvuData.quests || {};
+  container.innerHTML = '';
+  
+  Object.entries(quests).forEach(([name, data]) => {
+    const card = document.createElement('div');
+    card.className = 'mvu-card';
+    
+    const priorityColor = data.priority === '高' ? '#ef4444' : data.priority === '中' ? '#f59e0b' : '#6b7280';
+    
+    card.innerHTML = `
+      <div class="mvu-card-header">
+        <span class="mvu-card-title">${name}</span>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <span style="color:${priorityColor};font-size:11px;font-weight:600;">${data.priority || '中'}</span>
+          <span style="color:#6b7280;font-size:11px;">${data.status || '进行中'}</span>
+          <button class="mvu-del-btn" data-name="${name}">删除</button>
+        </div>
+      </div>
+      <div class="mvu-form-row">
+        <span class="mvu-form-label">进展</span>
+        <input class="mvu-input" value="${data.progress || ''}" placeholder="当前进展">
+      </div>
+      <div class="mvu-form-row">
+        <span class="mvu-form-label">目标</span>
+        <input class="mvu-input" value="${data.target || ''}" placeholder="完成条件">
+      </div>
+      <div class="mvu-form-row">
+        <span class="mvu-form-label">奖励</span>
+        <input class="mvu-input" value="${data.reward || ''}" placeholder="奖励">
+      </div>
+    `;
+    
+    card.querySelector('.mvu-del-btn').onclick = function() {
+      delete mvuData.quests[name];
+      renderQuests();
+      showToast('🗑️ 已删除任务');
+    };
+    
+    container.appendChild(card);
+  });
+}
+
+// 渲染关系列表
+function renderRelations() {
+  const container = document.getElementById('relations-list');
+  const relations = mvuData.relations || {};
+  container.innerHTML = '';
+  
+  Object.entries(relations).forEach(([name, data]) => {
+    const card = document.createElement('div');
+    card.className = 'mvu-card';
+    card.innerHTML = `
+      <div class="mvu-card-header">
+        <span class="mvu-card-title">${name}</span>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <span style="color:${data.present ? '#22c55e' : '#6b7280'};font-size:11px;">
+            ${data.present ? '在场' : '不在场'}
+          </span>
+          <button class="mvu-del-btn" data-name="${name}">删除</button>
+        </div>
+      </div>
+      <div class="mvu-form-row">
+        <span class="mvu-form-label">种族</span>
+        <input class="mvu-input" value="${data.race || ''}">
+        <span class="mvu-form-label" style="width:auto;margin-left:8px;">等级</span>
+        <input class="mvu-input small" type="number" value="${data.level || 1}">
+      </div>
+    `;
+    
+    card.querySelector('.mvu-del-btn').onclick = function() {
+      delete mvuData.relations[name];
+      renderRelations();
+      showToast('🗑️ 已删除');
+    };
+    
+    container.appendChild(card);
+  });
+}
+
+// 渲染高级面板
+function renderAdvanced() {
+  document.getElementById('mvu-json-view').value = JSON.stringify(mvuData, null, 2);
+}
+
+// 事件绑定
+$(function() {
+  // 初始加载
+  loadMVU();
+  
+  // 标签切换
+  $('.mvu-tab').on('click', function() {
+    $('.mvu-tab').removeClass('active');
+    $(this).addClass('active');
+    const tab = $(this).data('tab');
+    $('.mvu-panel').removeClass('active');
+    $(`.mvu-panel[data-panel="${tab}"]`).addClass('active');
+  });
+  
+  // 收起面板
+  let minimized = false;
+  $('#mvu-minimize').on('click', function() {
+    minimized = !minimized;
+    $('#mvu-root').toggleClass('minimized', minimized);
+    $(this).text(minimized ? '□' : '─');
+  });
+  
+  // 刷新
+  $('#mvu-refresh').on('click', () => {
+    loadMVU();
+    showToast('🔄 已刷新');
+  });
+  
+  // 保存
+  $('#mvu-save').on('click', saveMVU);
+  
+  // 添加物品
+  $('#add-item').on('click', () => {
+    const name = prompt('输入物品名称：');
+    if (!name) return;
+    if (!mvuData.protagonist.backpack) mvuData.protagonist.backpack = {};
+    mvuData.protagonist.backpack[name] = { quality: '普通', type: '', quantity: 1, desc: '' };
+    renderInventory();
+    showToast('✅ 已添加物品');
+  });
+  
+  // 添加装备
+  $('#add-equip').on('click', () => {
+    const name = prompt('输入装备名称：');
+    if (!name) return;
+    if (!mvuData.protagonist.equipment) mvuData.protagonist.equipment = {};
+    mvuData.protagonist.equipment[name] = { quality: '普通', type: '', slot: '', desc: '' };
+    renderEquipment();
+    showToast('✅ 已添加装备');
+  });
+  
+  // 添加技能
+  $('#add-skill').on('click', () => {
+    const name = prompt('输入技能名称：');
+    if (!name) return;
+    if (!mvuData.protagonist.skills) mvuData.protagonist.skills = {};
+    mvuData.protagonist.skills[name] = { quality: '普通', type: '', cost: '', desc: '' };
+    renderSkills();
+    showToast('✅ 已添加技能');
+  });
+  
+  // 添加状态效果
+  $('#add-buff').on('click', () => {
+    const name = prompt('输入效果名称：');
+    if (!name) return;
+    if (!mvuData.protagonist.buffs) mvuData.protagonist.buffs = {};
+    mvuData.protagonist.buffs[name] = { type: '增益', effect: '', layers: 1, remainTime: '', source: '' };
+    renderBuffs();
+    showToast('✅ 已添加效果');
+  });
+  
+  // 添加要素
+  $('#add-element').on('click', () => {
+    const name = prompt('输入要素名称：');
+    if (!name) return;
+    if (!mvuData.divinity.elements) mvuData.divinity.elements = {};
+    mvuData.divinity.elements[name] = { desc: '' };
+    renderDivinity();
+    showToast('✅ 已添加要素');
+  });
+  
+  // 添加权能
+  $('#add-authority').on('click', () => {
+    const name = prompt('输入权能名称：');
+    if (!name) return;
+    if (!mvuData.divinity.authority) mvuData.divinity.authority = {};
+    mvuData.divinity.authority[name] = { desc: '' };
+    renderDivinity();
+    showToast('✅ 已添加权能');
+  });
+  
+  // 添加法则
+  $('#add-law').on('click', () => {
+    const name = prompt('输入法则名称：');
+    if (!name) return;
+    if (!mvuData.divinity.laws) mvuData.divinity.laws = {};
+    mvuData.divinity.laws[name] = { desc: '' };
+    renderDivinity();
+    showToast('✅ 已添加法则');
+  });
+  
+  // 添加任务
+  $('#add-quest').on('click', () => {
+    const name = prompt('输入任务名称：');
+    if (!name) return;
+    if (!mvuData.quests) mvuData.quests = {};
+    mvuData.quests[name] = { status: '进行中', priority: '中', progress: '', target: '', reward: '' };
+    renderQuests();
+    showToast('✅ 已添加任务');
+  });
+  
+  // 添加关系角色
+  $('#add-relation').on('click', () => {
+    const name = prompt('输入角色名称：');
+    if (!name) return;
+    if (!mvuData.relations) mvuData.relations = {};
+    mvuData.relations[name] = { present: true, race: '', level: 1 };
+    renderRelations();
+    showToast('✅ 已添加角色');
+  });
+  
+  // 应用JSON
+  $('#apply-json').on('click', () => {
+    try {
+      mvuData = JSON.parse($('#mvu-json-view').val());
+      renderAllPanels();
+      showToast('✅ JSON已应用');
+    } catch(e) {
+      showToast('❌ JSON格式错误');
+    }
+  });
+  
+  // 重置JSON
+  $('#reset-json').on('click', () => {
+    renderAdvanced();
+    showToast('🔄 已重置');
+  });
+  
+  // 搜索
+  $('#mvu-search').on('input', function() {
+    const keyword = $(this).val().trim().toLowerCase();
+    if (!keyword) { renderAdvanced(); return; }
+    const text = JSON.stringify(mvuData, null, 2);
+    const highlighted = text.replace(new RegExp(`(${keyword})`, 'gi'), '<mark style="background:#ffd33d;color:#000">$1</mark>');
+    $('#mvu-json-view').val(highlighted);
+  });
+  
+  // 登神开关
+  $('#divinity-enabled').on('change', function() {
+    if (mvuData.divinity) {
+      mvuData.divinity.enabled = this.checked;
+      renderDivinity();
+    }
+  });
+  
+  // 自动刷新
+  setInterval(loadMVU, 30000);
+});
+</script>
+</body>
+</html>
